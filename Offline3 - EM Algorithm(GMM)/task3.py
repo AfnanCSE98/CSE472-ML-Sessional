@@ -1,7 +1,19 @@
+# import the necessary packages
 import numpy as np
+import matplotlib.pyplot as plt
+from EMGaussian import GaussianMixtureModel as GMM
+from pca import PCA
 
-# generate a random np array of shape (1500,2)
-arr = np.array([[1, 2], [5, 6], [7, 9]])
+# Load the data
+X = np.loadtxt('data6D.txt')
+print(X.shape)
 
-max_indices = np.argmax(arr, axis=1)
-print(max_indices)  # Output: [2 2 2]
+pca = PCA(n_new_features=2)
+X = pca.fit_transform(X)
+print(X.shape)
+
+n_components = 5
+# Fit the model with n_components and plot= True
+gmm = GMM(n_components=n_components)
+
+gmm.fit(X, plot=True)
