@@ -5,7 +5,7 @@ from EMGaussian import GaussianMixtureModel as GMM
 from pca import PCA
 
 # Load the data
-X = np.loadtxt('data6D.txt')
+X = np.loadtxt('data3D.txt')
 print(X.shape)
 
 pca = PCA(n_new_features=2)

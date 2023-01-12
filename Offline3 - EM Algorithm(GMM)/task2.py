@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from EMGaussian import GaussianMixtureModel as GMM
 
 # Load the data
-X = np.loadtxt('data3D.txt')
+X = np.loadtxt('data2D.txt')
 
 n_components = 3
 

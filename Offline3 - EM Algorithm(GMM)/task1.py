@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from EMGaussian import GaussianMixtureModel as GMM
 
 # Load the data
-X = np.loadtxt('data6D.txt')
+X = np.loadtxt('data3D.txt')
 
 # Fit the model with n_components varying from 1 to 10 and plot the log likelihood
 log_likelihoods = []

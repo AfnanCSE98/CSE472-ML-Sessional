@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
+from scipy.stats import multivariate_normal
 
 class GaussianMixtureModel:
-    def __init__(self, n_components, max_iter=100, tol=1e-3):
+    def __init__(self, n_components, max_iter=100, tol=0.1):
         self.n_components = n_components
         self.max_iter = max_iter
         self.tol = tol
@@ -17,7 +17,7 @@ class GaussianMixtureModel:
         # Initialize the weights, means, and covariances
         weights = np.ones(self.n_components) / self.n_components
         means = np.random.rand(self.n_components, n_features)
-        covariances = np.array([np.eye(n_features) for _ in range(self.n_components)])
+        covariances = np.array([np.eye(n_features) for _ in range(self.n_components)]) + 0.000001
 
         # perform error checking
         if n_samples < self.n_components:
@@ -37,8 +37,8 @@ class GaussianMixtureModel:
             resp = self._e_step(X, weights, means, covariances)
 
             # M-step: update the weights, means, and covariances
+           
             weights, means, covariances = self._m_step(X, resp)
-
             # Calculate the log likelihood
             log_likelihood_new = self._calculate_log_likelihood(X, weights, means, covariances)
 
@@ -53,9 +53,8 @@ class GaussianMixtureModel:
 
             # # plot the data points and gaussian distributions in a 2D plot
             if plot:
-                color_ara = self.predict(X , weights , means , covariances)
-                plt.scatter(X[:, 0], X[:, 1], c = color_ara)
-                plt.show()
+                
+                self._plot(X, weights, means, covariances)
 
 
         self.weights_ = weights
@@ -75,13 +74,15 @@ class GaussianMixtureModel:
         n_samples, _ = X.shape
         resp = np.zeros((n_samples, self.n_components))
 
+        # Calculate the responsibility matrix without numpy methods
         for i in range(self.n_components):
-          
-            resp[:, i] = weights[i] * self._multivariate_normal(X, means[i], covariances[i])
-           
-        resp /= resp.sum(axis=1)[:, np.newaxis]
+            tmp = self._multivariate_normal(X, means[i], covariances[i])
+            resp[: , i] = weights[i] * tmp
 
-        return resp
+        resp /= resp.sum(axis=1, keepdims=True)
+        # replace any entry of resp if that is zero with 0.0001
+        resp[resp == 0] = 0.0001
+        return resp 
 
     def _m_step(self, X, resp):
         """
@@ -90,34 +91,55 @@ class GaussianMixtureModel:
         computed in the E-step. This is done by maximizing the log-likelihood of the data given the responsibilities.
         """
         n_samples, n_features = X.shape
-        weights = resp.sum(axis=0) / n_samples
+        weights = np.zeros(self.n_components)
         means = np.zeros((self.n_components, n_features))
-        covariances = np.zeros((self.n_components, n_features, n_features))
+        covariances = np.array([np.eye(n_features) for _ in range(self.n_components)]) 
 
         for i in range(self.n_components):
+            # Update the weights
+            weights[i] = resp[:, i].sum() / n_samples
+            # Update the means and covariances without using numpy methods
+            m_sum = np.zeros(n_features)
+            for j in range(n_samples):
+                m_sum += resp[j, i] * X[j]
 
-            means[i] = (resp[:, i][:, np.newaxis] * X).sum(axis=0) / resp[:, i].sum()
-            covariances[i] = (resp[:, i][:, np.newaxis] * ( X - means[i] )).T.dot(X - means[i]) / resp[:, i].sum()
-        
+            # check if m_sum or resp[:,i].sum() is nan
+          
+            means[i] = m_sum / resp[:, i].sum()
+            cv_sum = np.zeros((n_features, n_features))
+            for j in range(n_samples):
+                cv_sum += resp[j, i] * np.outer(X[j] - means[i], X[j] - means[i])
+            covariances[i] = cv_sum / resp[:, i].sum()
+
+        # if means or covariances contain nan
+        if np.isnan(means).any() or np.isnan(covariances).any():
+            print('Means or covariances contain nan')
+            print('means: {}, covariances: {}'.format(means, covariances))
+            raise ValueError('Means or covariances contain nan')
         return weights, means, covariances
 
     def _calculate_log_likelihood(self, X, weights, means, covariances):
+        """
+        Calculate the log likelihood of the data given the current model parameters.
+        """
         log_likelihood = 0
-
+    
         for i in range(self.n_components):
-
+           
             log_likelihood += weights[i] * self._multivariate_normal(X, means[i], covariances[i])
 
-        return np.log(log_likelihood).sum()
+        return np.sum(np.log(log_likelihood))
 
     def _multivariate_normal(self, X, mean, covariance):
-        n_samples, n_features = X.shape
-        det = np.linalg.det(covariance)
-        inv = np.linalg.inv(covariance)
+        # n_samples, n_features = X.shape
+        # det = np.linalg.det(covariance)
+        # inv = np.linalg.inv(covariance)
 
-        norm_const = 1.0 / (np.power((2 * np.pi), float(n_features) / 2) * np.power(det, 1.0 / 2))
+        # norm_const = 1.0 / (np.power((2 * np.pi), float(n_features) / 2) * np.power(det, 1.0 / 2))
 
-        return norm_const * np.exp(-0.5 * np.einsum('ij, ij -> i', X - mean, np.dot(X - mean, inv)))
+        # return norm_const * np.exp(-0.5 * np.einsum('ij, ij -> i', X - mean, np.dot(X - mean, inv)))
+        
+        return multivariate_normal.pdf(X , mean , covariance , allow_singular=True)
 
     def predict(self, X , weights, means, covariances):
         
@@ -130,3 +152,7 @@ class GaussianMixtureModel:
     def get_logLikelihood_and_n_components(self):
         return self.log_likelihood_, self.n_components
 
+    def _plot(self , X , weights , means , covariances):
+        color_ara = self.predict(X , weights , means , covariances)
+        plt.scatter(X[:, 0], X[:, 1], c = color_ara)
+        plt.show()
