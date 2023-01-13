@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
 
 class GaussianMixtureModel:
-    def __init__(self, n_components, max_iter=100, tol=0.1):
+    def __init__(self, n_components, max_iter=100, tol=0.2):
         self.n_components = n_components
         self.max_iter = max_iter
         self.tol = tol
@@ -17,8 +17,8 @@ class GaussianMixtureModel:
         # Initialize the weights, means, and covariances
         weights = np.ones(self.n_components) / self.n_components
         means = np.random.rand(self.n_components, n_features)
-        covariances = np.array([np.eye(n_features) for _ in range(self.n_components)]) + 0.000001
-
+        # take 10% of data randomly and initialize covariance matrix
+        covariances = np.array([np.cov(X[np.random.choice(n_samples, int(n_samples/10), replace=False)], rowvar=False) for _ in range(self.n_components)])
         # perform error checking
         if n_samples < self.n_components:
             raise ValueError('The number of samples must be greater than the number of components')
@@ -44,7 +44,7 @@ class GaussianMixtureModel:
 
             # print after checkpoints
             if i % 10 == 0:
-                print('Iteration: {}, Log-Likelihood: {}'.format(i, log_likelihood_new))
+                print('Iteration: {}, Log-Likelihood: {}'.format(i+10, log_likelihood_new))
 
             # Check for convergence
             if log_likelihood is not None and abs(log_likelihood - log_likelihood_new) < self.tol:
@@ -76,12 +76,16 @@ class GaussianMixtureModel:
 
         # Calculate the responsibility matrix without numpy methods
         for i in range(self.n_components):
-            tmp = self._multivariate_normal(X, means[i], covariances[i])
-            resp[: , i] = weights[i] * tmp
-
-        resp /= resp.sum(axis=1, keepdims=True)
+            resp[: , i] = weights[i] * self._multivariate_normal(X, means[i], covariances[i])
+    
         # replace any entry of resp if that is zero with 0.0001
-        resp[resp == 0] = 0.0001
+        for i in range(n_samples):
+            for j in range(self.n_components):
+                if resp[i,j] == 0:
+                    resp[i,j] = 0.0001
+        # Normalize the resp matrix
+        resp /= resp.sum(axis=1, keepdims=True)
+
         return resp 
 
     def _m_step(self, X, resp):
@@ -111,7 +115,7 @@ class GaussianMixtureModel:
                 cv_sum += resp[j, i] * np.outer(X[j] - means[i], X[j] - means[i])
             covariances[i] = cv_sum / resp[:, i].sum()
 
-        # if means or covariances contain nan
+        #if means or covariances contain nan
         if np.isnan(means).any() or np.isnan(covariances).any():
             print('Means or covariances contain nan')
             print('means: {}, covariances: {}'.format(means, covariances))

@@ -12,7 +12,7 @@ pca = PCA(n_new_features=2)
 X = pca.fit_transform(X)
 print(X.shape)
 
-n_components = 5
+n_components = 4
 # Fit the model with n_components and plot= True
 gmm = GMM(n_components=n_components)
 
