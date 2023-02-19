@@ -54,7 +54,7 @@ class GaussianMixtureModel:
             # # plot the data points and gaussian distributions in a 2D plot
             if plot:
                 
-                self._plot(X, weights, means, covariances)
+                self._plot(X, weights, means, covariances , i+1)
 
 
         self.weights_ = weights
@@ -156,7 +156,9 @@ class GaussianMixtureModel:
     def get_logLikelihood_and_n_components(self):
         return self.log_likelihood_, self.n_components
 
-    def _plot(self , X , weights , means , covariances):
+    def _plot(self , X , weights , means , covariances , iteration):
         color_ara = self.predict(X , weights , means , covariances)
         plt.scatter(X[:, 0], X[:, 1], c = color_ara)
+        # set heading of the plot as iteration number
+        plt.title('Iteration: {}'.format(iteration))
         plt.show()
